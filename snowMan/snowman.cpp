@@ -4,12 +4,16 @@
 // Richard S. Wright Jr.
 
 #include "GL/freeglut.h"    // OpenGL toolkit
+#include <iostream>
 
+using namespace std;
 #define ESC 27
 #define ENTER 13
 // Rotation amounts
 static GLfloat xRot = 0.0f;
 static GLfloat yRot = 0.0f;
+static GLfloat mouseSpeed = 0.05f;
+static GLfloat scale = 1.0f;
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -53,7 +57,7 @@ void SetupRC()
 
     glEnable(GL_DEPTH_TEST);    // Hidden surface removal
     glFrontFace(GL_CCW);        // Counter clock-wise polygons face out
-    glEnable(GL_CULL_FACE);        // Do not calculate inside
+    // glEnable(GL_CULL_FACE);        // Do not calculate inside
 
     // Enable lighting
     glEnable(GL_LIGHTING);
@@ -89,6 +93,12 @@ void SpecialKeys(int key, int x, int y)
 
     if(key == GLUT_KEY_RIGHT)
         yRot += 5.0f;
+    
+    if(key == GLUT_KEY_PAGE_UP)
+        scale += 0.1f;
+
+    if(key == GLUT_KEY_PAGE_DOWN)
+        scale -= 0.1f;
                 
         xRot = (GLfloat)((const int)xRot % 360);
         yRot = (GLfloat)((const int)yRot % 360);
@@ -107,18 +117,45 @@ void keyboard(unsigned char key, int x, int y) {
             break;
     }
 }
+
+void motion(int x, int y) {
+    static bool wrap = false;
+
+    if(!wrap) {
+        int ww = glutGet(GLUT_WINDOW_WIDTH);
+        int wh = glutGet(GLUT_WINDOW_HEIGHT);
+
+        int dx = x - ww / 2;
+        int dy = y - wh / 2;
+
+        // cout << dx << " " << dy << endl;
+
+        xRot += dy;
+        yRot += dx;
+
+        xRot = (GLfloat)((const int)xRot % 360);
+        yRot = (GLfloat)((const int)yRot % 360);
+        glutPostRedisplay();
+
+        wrap = true;
+        glutWarpPointer(ww / 2, wh / 2);
+    } else {
+        wrap = false;
+    }
+}
+
 // Called to draw scene
 void RenderScene(void)
     {
     GLUquadricObj *pObj;    // Quadric Object
-    
     // Clear the window with current clearing color
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Save the matrix state and do the rotations
     glPushMatrix();
+
         // Move object back and do in place rotation
-        glTranslatef(0.0f, .3f, -5.0f);
+        glTranslatef(0.0f, .3f, -10.0f);
         glRotatef(xRot, 1.0f, 0.0f, 0.0f);
         glRotatef(yRot, 0.0f, 1.0f, 0.0f);
 
@@ -128,17 +165,43 @@ void RenderScene(void)
         
         
         glPushMatrix();
+            glScalef(scale, scale, scale);
+            
             glRotatef(-90, 1, 0, 0);
 
             // Desk
             glPushMatrix();
                 // Desk top
-                glColor3f(0, 1, 1); // 
-                glTranslatef(0, 0, -0.5);
-                gluDisk(pObj, 0, 2, 4, 1);
-                glTranslatef(0, 0, -0.1);
-                gluDisk(pObj, 0, 2, 4, 1);
-                gluCylinder(pObj, 2, 2, 0.1, 4, 1);
+                glColor3f(0, 1, 1); // blue
+
+                glPushMatrix();
+                    glTranslatef(0, 0, -0.5);
+                    gluDisk(pObj, 0, 2, 4, 1);
+                    glTranslatef(0, 0, -0.1);
+                    gluDisk(pObj, 0, 2, 4, 1);
+                    gluCylinder(pObj, 2, 2, 0.1, 4, 10);
+                glPopMatrix();
+                // Legs
+                glPushMatrix();
+                    glTranslatef(1.8, 0.0, -2.1);
+                    gluCylinder(pObj, 0.2, 0.2, 1.5, 4, 1);
+                glPopMatrix();
+
+                glPushMatrix();
+                    glTranslatef(-1.8, 0.0, -2.1);
+                    gluCylinder(pObj, 0.2, 0.2, 1.5, 4, 1);
+                glPopMatrix();
+
+                glPushMatrix();
+                    glTranslatef(0.0, 1.8, -2.1);
+                    gluCylinder(pObj, 0.2, 0.2, 1.5, 4, 1);
+                glPopMatrix();
+
+                glPushMatrix();
+                    glTranslatef(0.0, -1.8, -2.1);
+                    gluCylinder(pObj, 0.2, 0.2, 1.5, 4, 1);
+                glPopMatrix();
+
             glPopMatrix();
 
             // Lamp
@@ -180,6 +243,7 @@ void RenderScene(void)
 
 int main(int argc, char *argv[])
     {
+
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
     glutInitWindowSize(800, 600);
@@ -188,6 +252,8 @@ int main(int argc, char *argv[])
     glutSpecialFunc(SpecialKeys);
     glutDisplayFunc(RenderScene);
     glutKeyboardFunc(keyboard);
+    glutPassiveMotionFunc(motion);
+    glutSetCursor(GLUT_CURSOR_NONE);
     SetupRC();
     glutMainLoop();
     
