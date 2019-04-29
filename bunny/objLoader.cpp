@@ -11,7 +11,7 @@ bool objLoader(const char *filePath, std::vector<glm::vec3> &out_vertices) {
     std::vector<glm::vec3> temp_vertices;
 
     // read obj file
-    FILE *file = fopen(filePath, "w");
+    FILE *file = fopen(filePath, "r");
     if(file == NULL) {
         printf("Cannot open file!\n");
         return false;
