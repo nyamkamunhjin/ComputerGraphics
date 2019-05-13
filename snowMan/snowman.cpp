@@ -237,7 +237,7 @@ void RenderScene(void)
 
     // Buffer swap
     glutSwapBuffers();
-    }
+}
 
  
 
@@ -252,8 +252,8 @@ int main(int argc, char *argv[])
     glutSpecialFunc(SpecialKeys);
     glutDisplayFunc(RenderScene);
     glutKeyboardFunc(keyboard);
-    glutPassiveMotionFunc(motion);
-    glutSetCursor(GLUT_CURSOR_NONE);
+    // glutPassiveMotionFunc(motion);
+    // glutSetCursor(GLUT_CURSOR_NONE);
     SetupRC();
     glutMainLoop();
     
