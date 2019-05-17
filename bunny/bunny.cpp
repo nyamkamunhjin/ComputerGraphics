@@ -5,17 +5,37 @@
 #include "objLoader.cpp"
 #include <glm/vec3.hpp>
 using namespace std;
+
 #define ESC 27
 #define ENTER 13
+#define w 119
+#define s 115
+#define a 97
+#define d 100
+
+
+
+
+
 
 std::vector<glm::vec3> vertices;
-bool res = objLoader("/home/mj/Documents/ComputerGraphics/bunny/bunny.obj", vertices);
+bool res = objLoader("bunny/bunny.obj", vertices);
 
 // Rotation amounts
 static GLfloat xRot = 0.0f;
 static GLfloat yRot = 0.0f;
 static GLfloat mouseSpeed = 0.05f;
 static GLfloat scale = 1.0f;
+
+// mouse cameraX, cameraY, cameraZ, lookX, lookY, lookZ
+static GLfloat cameraX = 0.0f;
+static GLfloat cameraY = 0.0f;
+static GLfloat cameraZ = 0.0f;
+
+static GLfloat lookX = 0.0f;
+static GLfloat lookY = 0.0f;
+static GLfloat lookZ = 0.0f;
+
 
 void drawSquare(GLfloat len, GLfloat x, GLfloat y) {
     glBegin(GL_TRIANGLE_FAN);
@@ -28,17 +48,17 @@ void drawSquare(GLfloat len, GLfloat x, GLfloat y) {
 
 ////////////////////////////////////////////////////////////////////////////
 // Change viewing volume and viewport.  Called when window is resized
-void ChangeSize(int w, int h) {
+void ChangeSize(int width, int height) {
     GLfloat fAspect;
 
     // Prevent a divide by zero
-    if(h == 0)
-        h = 1;
+    if(height == 0)
+        height = 1;
 
     // Set Viewport to window dimensions
-    glViewport(0, 0, w, h);
+    glViewport(0, 0, width, height);
 
-    fAspect = (GLfloat)w/(GLfloat)h;
+    fAspect = (GLfloat)width / (GLfloat)height;
 
     // Reset coordinate system
     glMatrixMode(GL_PROJECTION);
@@ -57,20 +77,20 @@ void ChangeSize(int w, int h) {
 // context.  Here it sets up and initializes the lighting for
 // the scene.
 void SetupRC() {
-    GLfloat amb[] = {0.32f, 0.22f, 0.027f, 1.0f};
-    GLfloat diff[] = {0.0f, 0.56f, 0.11f, 1.0f};
-    GLfloat spec[] = {0.45f, 0.94f, 0.8f, 1.0f};
-    GLfloat shine = 27.9f;  
+    GLfloat amb[] = {0.2f, 0.1f, 0.027f, 0.5f};
+    GLfloat diff[] = {0.0f, 0.26f, 0.11f, 0.5f};
+    GLfloat spec[] = {0.2f, 0.24f, 0.3f, 1.0f};
+    GLfloat shine = 10.9f;  
 
 
 
     // Light values and coordinates
-    GLfloat  whiteLight[] = { 0.05f, 0.05f, 0.05f, 1.0f };
-    GLfloat  sourceLight[] = { 0.25f, 0.25f, 0.25f, 1.0f };
-    GLfloat     lightPos[] = { -10.f, 5.0f, 5.0f, 1.0f };
+    GLfloat  whiteLight[] = { 0.05f, 0.05f, 0.05f, 0.1f };
+    GLfloat  sourceLight[] = { 0.25f, 0.25f, 0.25f, 0.1f };
+    GLfloat     lightPos[] = { -10.f, 5.0f, 5.0f, 0.1f };
 
     glEnable(GL_DEPTH_TEST);    // Hidden surface removal
-    glFrontFace(GL_BACK);        // Counter clock-wise polygons face out
+    glFrontFace(GL_CW);        // Counter clock-wise polygons face out
     // glEnable(GL_CULL_FACE);           // Do not calculate inside
 
     // Enable lighting
@@ -96,7 +116,7 @@ void SetupRC() {
 
 
     // Black blue background
-    glClearColor(0.25f, 0.25f, 0.50f, 1.0f );
+    glClearColor(0.25f, 0.25f, 0.50f, 1.0f);
 }
 
 // Respond to arrow keys
@@ -134,7 +154,25 @@ void keyboard(unsigned char key, int x, int y) {
         case ENTER:
             exit(0);
             break;
+        case w:
+            cameraZ += 2.0f;
+            // lookZ += 2.0f;
+            break;
+        case s:
+            cameraZ -= 2.0f;
+            // lookZ -= 2.0f;
+            break;
+        // case a:
+        //     cameraX += 2.0f;
+        //     lookX += 2.0f;
+        //     break;
+        // case d:
+        //     cameraX -= 2.0f;
+        //     lookX -= 2.0f;
+        //     break;
     }
+    // Refresh the Window
+    glutPostRedisplay();
 }
 
 void motion(int x, int y) {
@@ -144,16 +182,17 @@ void motion(int x, int y) {
         int ww = glutGet(GLUT_WINDOW_WIDTH);
         int wh = glutGet(GLUT_WINDOW_HEIGHT);
 
-        int dx = x - ww / 2;
+        int dx = x - ww / 2; // subtracting threshold
         int dy = y - wh / 2;
 
         // cout << dx << " " << dy << endl;
 
-        xRot += dy;
-        yRot += dx;
+        xRot += dy/2;
+        yRot += dx/2;
 
         xRot = (GLfloat)((const int)xRot % 360);
         yRot = (GLfloat)((const int)yRot % 360);
+        
         glutPostRedisplay();
 
         wrap = true;
@@ -174,9 +213,9 @@ glm::vec3 calculateNormal(glm::vec3 triangle[3]) {
     V.y = triangle[2].y - triangle[0].y;
     V.z = triangle[2].z - triangle[0].z;
     
-    normal.x = U.y * V.z - U.z - V.y;
-    normal.y = U.z * V.x - U.x - V.z;
-    normal.z = U.x * V.y - U.y - V.x;
+    normal.x = U.y * V.z - U.z * V.y;
+    normal.y = U.z * V.x - U.x * V.z;
+    normal.z = U.x * V.y - U.y * V.x;
 	//printf("%f %f %f\n", normal.x, normal.y, normal.z);
 	float length = (float) sqrt(normal.x * normal.x +
 					normal.y * normal.y +
@@ -195,16 +234,20 @@ glm::vec3 calculateNormal(glm::vec3 triangle[3]) {
 
 // Called to draw scene
 void RenderScene(void) {
+    
+
     // Clear the window with current clearing color
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glPushMatrix();
-        
+        gluLookAt(cameraX, cameraY, cameraZ - 150,
+                  lookX, lookY, lookZ,
+                  0.0, 1.0, 0.0);
         // Move object back and do in place rotation
-        glTranslatef(0.0f, .3f, -100.0f);
+        glTranslatef(0.0f, 0.0f, -100.0f);
         glRotatef(xRot, 1.0f, 0.0f, 0.0f);
         glRotatef(yRot, 0.0f, 1.0f, 0.0f);
         glPushMatrix();
-        glScalef(scale, scale, scale);
+            glScalef(scale, scale, scale);
         // glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 15.0f);
 
             glRotatef(-90, 1, 0, 0);
@@ -227,7 +270,7 @@ void RenderScene(void) {
 					tempNormal[2].z = vertices[i + 2].z;
 
 					normal = calculateNormal(tempNormal);
-                    glNormal3f(normal.z, normal.y, normal.x);
+                    glNormal3f(normal.x, normal.y, normal.y);
 				}
 
                 
