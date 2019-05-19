@@ -16,7 +16,7 @@ using namespace std;
 
 
 
-
+GLfloat shadowMat[4][4];
 
 std::vector<glm::vec3> vertices;
 bool res = objLoader("bunny/bunny.obj", vertices);
@@ -71,16 +71,118 @@ void ChangeSize(int width, int height) {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 }
-    
+
+void ReduceToUnit(float vector[3])
+	{
+	float length;
+	
+	// Calculate the length of the vector		
+	length = (float)sqrt((vector[0]*vector[0]) + 
+						(vector[1]*vector[1]) +
+						(vector[2]*vector[2]));
+
+	// Keep the program from blowing up by providing an exceptable
+	// value for vectors that may calculated too close to zero.
+	if(length == 0.0f)
+		length = 1.0f;
+
+	// Dividing each element by the length will result in a
+	// unit normal vector.
+	vector[0] /= length;
+	vector[1] /= length;
+	vector[2] /= length;
+	}
+
+
+// Points p1, p2, & p3 specified in counter clock-wise order
+void calcNormal(float v[3][3], float out[3])
+	{
+	float v1[3],v2[3];
+	static const int x = 0;
+	static const int y = 1;
+	static const int z = 2;
+
+	// Calculate two vectors from the three points
+	v1[x] = v[0][x] - v[1][x];
+	v1[y] = v[0][y] - v[1][y];
+	v1[z] = v[0][z] - v[1][z];
+
+	v2[x] = v[1][x] - v[2][x];
+	v2[y] = v[1][y] - v[2][y];
+	v2[z] = v[1][z] - v[2][z];
+
+	// Take the cross product of the two vectors to get
+	// the normal vector which will be stored in out
+	out[x] = v1[y]*v2[z] - v1[z]*v2[y];
+	out[y] = v1[z]*v2[x] - v1[x]*v2[z];
+	out[z] = v1[x]*v2[y] - v1[y]*v2[x];
+
+	// Normalize the vector (shorten length to one)
+	ReduceToUnit(out);
+	}
+
+void MakeShadowMatrix(GLfloat points[3][3], GLfloat lightPos[4], GLfloat destMat[4][4])
+	{
+	GLfloat planeCoeff[4];
+	GLfloat dot;
+
+	// Find the plane equation coefficients
+	// Find the first three coefficients the same way we
+	// find a normal.
+	calcNormal(points,planeCoeff);
+
+	// Find the last coefficient by back substitutions
+	planeCoeff[3] = - (
+		(planeCoeff[0]*points[2][0]) + (planeCoeff[1]*points[2][1]) +
+		(planeCoeff[2]*points[2][2]));
+
+
+	// Dot product of plane and light position
+	dot = planeCoeff[0] * lightPos[0] +
+			planeCoeff[1] * lightPos[1] +
+			planeCoeff[2] * lightPos[2] +
+			planeCoeff[3] * lightPos[3];
+
+	// Now do the projection
+	// First column
+    	destMat[0][0] = dot - lightPos[0] * planeCoeff[0];
+    	destMat[1][0] = 0.0f - lightPos[0] * planeCoeff[1];
+    	destMat[2][0] = 0.0f - lightPos[0] * planeCoeff[2];
+    	destMat[3][0] = 0.0f - lightPos[0] * planeCoeff[3];
+
+	// Second column
+	destMat[0][1] = 0.0f - lightPos[1] * planeCoeff[0];
+	destMat[1][1] = dot - lightPos[1] * planeCoeff[1];
+	destMat[2][1] = 0.0f - lightPos[1] * planeCoeff[2];
+	destMat[3][1] = 0.0f - lightPos[1] * planeCoeff[3];
+
+	// Third Column
+	destMat[0][2] = 0.0f - lightPos[2] * planeCoeff[0];
+	destMat[1][2] = 0.0f - lightPos[2] * planeCoeff[1];
+	destMat[2][2] = dot - lightPos[2] * planeCoeff[2];
+	destMat[3][2] = 0.0f - lightPos[2] * planeCoeff[3];
+
+	// Fourth Column
+	destMat[0][3] = 0.0f - lightPos[3] * planeCoeff[0];
+	destMat[1][3] = 0.0f - lightPos[3] * planeCoeff[1];
+	destMat[2][3] = 0.0f - lightPos[3] * planeCoeff[2];
+	destMat[3][3] = dot - lightPos[3] * planeCoeff[3];
+	}
 
 // This function does any needed initialization on the rendering
 // context.  Here it sets up and initializes the lighting for
 // the scene.
 void SetupRC() {
+
+    // Any three points on the ground (counter clockwise order)
+	GLfloat points[3][3] = {{ -30.0f, -149.0f, -20.0f },
+							{ -30.0f, -149.0f, 20.0f },
+							{ 40.0f, -149.0f, 20.0f }};
+
     GLfloat amb[] = {0.2f, 0.1f, 0.027f, 0.5f};
     GLfloat diff[] = {0.0f, 0.26f, 0.11f, 0.5f};
     GLfloat spec[] = {0.2f, 0.24f, 0.3f, 1.0f};
-    GLfloat shine = 10.9f;  
+    GLfloat shine = 1.9f;  
 
 
 
@@ -90,7 +192,7 @@ void SetupRC() {
     GLfloat     lightPos[] = { -10.f, 5.0f, 5.0f, 0.1f };
 
     glEnable(GL_DEPTH_TEST);    // Hidden surface removal
-    glFrontFace(GL_CW);        // Counter clock-wise polygons face out
+    glFrontFace(GL_CCW);        // Counter clock-wise polygons face out
     // glEnable(GL_CULL_FACE);           // Do not calculate inside
 
     // Enable lighting
@@ -117,6 +219,9 @@ void SetupRC() {
 
     // Black blue background
     glClearColor(0.25f, 0.25f, 0.50f, 1.0f);
+
+    // Calculate projection matrix to draw shadow on the ground
+	MakeShadowMatrix(points, lightPos, shadowMat);
 }
 
 // Respond to arrow keys
@@ -235,6 +340,8 @@ glm::vec3 calculateNormal(glm::vec3 triangle[3]) {
 // Called to draw scene
 void RenderScene(void) {
     
+    GLUquadricObj *pObj;
+
 
     // Clear the window with current clearing color
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -246,8 +353,31 @@ void RenderScene(void) {
         glTranslatef(0.0f, 0.0f, -100.0f);
         glRotatef(xRot, 1.0f, 0.0f, 0.0f);
         glRotatef(yRot, 0.0f, 1.0f, 0.0f);
+
+
+        pObj = gluNewQuadric();
+        gluQuadricNormals(pObj, GLU_SMOOTH);
+
+
+        // Plane
+        // Desk
+            glPushMatrix();
+                glTranslatef(0.0f, -5.0f, 0.0f);
+                glRotatef(-90, 1, 0, 0);
+                glScalef(100, 100, 100);
+                // Desk top
+                glColor3f(0, 1, 1); 
+
+                glPushMatrix();
+                    glTranslatef(0, 0, -0.5);
+                    gluDisk(pObj, 0, 2, 4, 1);
+                    glNormal3f(0.0f, 0.0f, 1.0f);
+                glPopMatrix();
+            glPopMatrix();
+
+        // bunny obj
         glPushMatrix();
-            glScalef(scale, scale, scale);
+            // glScalef(0.25, 0.25, 0.25);
         // glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 15.0f);
 
             glRotatef(-90, 1, 0, 0);

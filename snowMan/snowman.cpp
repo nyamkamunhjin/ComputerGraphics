@@ -172,7 +172,7 @@ void RenderScene(void)
             // Desk
             glPushMatrix();
                 // Desk top
-                glColor3f(0, 1, 1); // blue
+                glColor3f(0, 1, 1); 
 
                 glPushMatrix();
                     glTranslatef(0, 0, -0.5);
